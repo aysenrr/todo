@@ -36,8 +36,9 @@ public class SecurityConfig {
                 .cors(Customizer.withDefaults()) //CORS ayarlarını Spring Security seviyesinde etkinleştirir.
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**").permitAll()
-                        .anyRequest().authenticated()
+                        .requestMatchers("/api/auth/**").permitAll()// Auth endpoint'lerine herkese izin
+                        .requestMatchers("/actuator/***").authenticated()// Actuator endpoint'lerine sadece authenticated kullanıcılar erişebilsin
+                        .anyRequest().authenticated()// Diğer tüm istekler için kimlik doğrulama zorunlu
                 )
                 .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
         http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);

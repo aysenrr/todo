@@ -1,0 +1,31 @@
+services:
+  db:
+    image: postgres:17
+    container_name: todo-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 123456
+      POSTGRES_DB: tododb
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  app:
+    #build: . ile bulunduğu klasördeki Dockerfile’dan imaj oluşturuyor.
+    #dockerfile: Dockerfile da diyebiliriz
+    build: .
+    container_name: todo
+    ports:
+      - "8082:8082"
+    #depends_on: db diyerek önce veritabanının ayağa kalkmasını sağlıyoruz.
+    depends_on:
+      - db
+    environment:
+      #db hostname kullanılır çünkü docker network’te service name üzerinden erişilir.
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/tododb
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: 123456
+
+volumes:
+  db_data:
