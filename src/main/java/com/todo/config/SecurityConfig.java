@@ -1,7 +1,6 @@
 package com.todo.config;
 
 import com.todo.security.JwtFilter;
-import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -37,7 +36,7 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()// Auth endpoint'lerine herkese izin
-                        .requestMatchers("/actuator/***").authenticated()// Actuator endpoint'lerine sadece authenticated kullanıcılar erişebilsin
+                        .requestMatchers("/actuator/**").authenticated()// Actuator endpoint'lerine sadece authenticated kullanıcılar erişebilsin
                         .anyRequest().authenticated()// Diğer tüm istekler için kimlik doğrulama zorunlu
                 )
                 .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
