@@ -1,0 +1,88 @@
+name: CI/CD - Build & Deploy to GKE
+
+on:
+  push:
+    branches: ["main"] #sadece main branch'e push olunca tetiklenecek
+  workflow_dispatch: #manuel olarak da tetiklenebilir
+
+#Environment variables tanımlıyoruz.
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}  #Google Cloud projesi ID'si
+  GKE_CLUSTER: todo-cluster                  #Kubernetes cluster adın
+  GKE_ZONE: europe-north1                    #Cluster'ın bulunduğu bölge
+  DEPLOYMENT_NAME: todo-backend              #Kubernetes deployment adı
+  IMAGE_NAME: gcr.io/{{ secrets.GCP_PROJECT_ID }}/todo-backend # Image'in tam yolu (registry adresi)
+
+# ---------------------------------------------------------
+# 1. JOB: Build & Push Docker Image
+# ---------------------------------------------------------
+jobs:
+  build:
+    name: Build & Push Docker Image
+    runs-on: ubuntu-latest #Github Actions'ın sanal makinesi (Ubuntu)
+
+    steps:
+      #Repo kodlarını checkout ediyoruz
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      #Google Cloud SDK'yı kuruyoruz
+      # Bu adımda servis hesabı anahtarını (JSON) kullanarak kimlik doğrulama yapılır.
+      - name: Set up Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+          service_account_key: ${{ secrets.GCP_SA_KEY }} #GitHub Secrets'tan geliyor
+          export_default_credentials: true
+
+      # Docker’ı Google Container Registry ile yetkilendiriyoruz
+      # Böylece “docker push” komutu GCR’a image gönderebiliyor.
+      - name: Configure Docker for GCR
+        run: gcloud auth configure-docker gcr.io
+
+      # todo klasörüne gidip image oluşturuyoruz
+      #Her build için commit SHA ile benzersiz bir tag eklenir
+      - name: Build Docker Image
+        run: |
+          docker build -t $IMAGE_NAME:${{ github.sha }} .   #commit'e özel tag
+          docker tag $IMAGE_NAME:${{ github.sha }} $IMAGE_NAME:latest  # en güncel versiyon için latest tag
+
+      #Oluşturulan image’leri GCR’a yüklüyoruz
+      - name: Push Docker Image to GCR
+        run: |
+          docker push $IMAGE_NAME:${{ github.sha }}
+          docker push $IMAGE_NAME:latest
+
+deploy:
+  name: Deploy to GKE
+  runs-on: ubuntu-latest
+  needs: build # bu job, 'build' job'ı tamamlandıktan sonra çalışır
+
+  steps:
+  #Kodları tekrar checkout ediyoruz (deployment yaml dosyalarını okumak için)
+  - name: Checkout Repository
+    uses: actions/checkout@v4
+
+  #Google Cloud SDK kurulumu ve kimlik doğrulama
+  - name: Set up Google Cloud SDK
+    uses: google-github-actions/setup-gcloud@v2
+    with:
+      project_id: ${{ env.PROJECT_ID }}
+      service_account_key: ${{ secrets.GCP_SA_KEY }}
+      export_default_credentials: true
+
+  #Kubernetes Cluster'a bağlanıyoruz
+  - name: Get GKE Credentials
+    run: |
+      gcloud container clusters get-credentials ${{ env.GKE_CLUSTER }} --zone ${{ env.GKE_ZONE }}
+
+  #yeni image ile deployment'ı güncelliyoruz
+  #kubectl set image, mevcut pod'lardaki image tag'ini günceller
+  - name: Deploy Updated Image to GKE
+    run: |
+      kubectl set image deployment/${{ env.DEPLOYMENT_NAME }} \
+       ${{ env.DEPLOYMENT_NAME }}=$IMAGE_NAME:${{ github.sha }}
+      
+  #Deployment’ın başarıyla rollout olup olmadığını kontrol ediyoruz
+  - name: Verify Rollout status
+    run: kubectl rollout status deployment/${{ env.DEPLOYMENT_NAME }}

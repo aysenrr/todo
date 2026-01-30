@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: todo-backend-service #Servis adı, kubectl get svc ile görünür
+spec:
+  type: LoadBalancer         #Dış dünyaya açılan servis tipi
+  selector:
+    app: todo-backend        #Hangi podlara yönlendirileceği (label eşleşmesi)
+  

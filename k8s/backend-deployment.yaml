@@ -1,0 +1,26 @@
+# ----------------------------------------------------------
+#BACKEND DEPLOYMENT MANİFEST DOSYASI
+#Bu dosya Kubernetes'e backend uygulamasını tanıtır.
+# "kubectl apply -f backend-deployment.yaml" komutu ile çalışır.
+# ----------------------------------------------------------
+
+apiVersion: apps/v1    #Kullanılan Kubernetes API versiyonu, deployment için
+kind: Deployment       #Bu bir deployment nesnesi
+metadata:
+  name: todo-backend   #Deployment'ın adı (kubectl get deployments ile görülebilir)
+
+spec:
+  replicas: 1          #Aynı anda kaç pod çalışacak
+  selector:
+    matchLabels:       #Hangi pod'ların bu deployment'a ait olduğunu belirler
+      app: todo-backend
+  template:            #Her pod'un şablon tanımı
+    metadata:
+      labels:
+        app: todo-backend #Label podları seçmek için kullanılır, selector ile eşleşmeli
+    spec:
+      containers:
+        - name: todo-backend #Container adı (kubectl get pods çıktısında görülür)
+          image: gcr.io/${{ GCP_PROJECT_ID }}/ todo-backend:latest # 'latest' tag'i pipeline tarafından her yeni build sonrası güncellenecek.
+          ports:
+          - containerPort: 8082 #Spring Boot uygulamasının dinlediği port
